@@ -1,0 +1,345 @@
+#include <LiquidCrystal.h>
+#include <Servo.h>
+#include <EEPROM.h>
+
+// === CONFIGURAÇÃO DE HARDWARE ===
+// LCD Keypad Shield (Pinos padrão)
+LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
+Servo servoMotor;
+
+// LED RGB (Cátodo Comum - HIGH acende)
+const int LED_R = 48;
+const int LED_G = 50;
+const int LED_B = 52;
+
+// Entradas Automáticas (Sensores)
+const int SINAL_POS180 = 41;  // Prioridade / Subir
+const int SINAL_POS0   = 43;  // Descer (Estampar)
+const int PIN_SERVO    = 45;
+
+// === ESTADOS E VARIÁVEIS ===
+enum Nivel {INICIO, MENU, SUBMENU, EDICAO};
+enum Sub   {NONE, ANG, VEL, LING};
+
+Nivel nivel = INICIO;
+Sub   subAtual = NONE;
+
+int lin = 1, col = 1;
+int angulo1 = 0;
+int angulo2 = 180;
+int velocidade = 10; // Delay em ms entre passos do servo
+int idioma = 0;      // 0 = PT, 1 = EN
+int posicaoAtualServo = -1; // Guarda a posição lógica do servo
+
+bool atualizarEcra = true; // Flag para evitar limpar o LCD constantemente
+unsigned long tBlink = 0;
+bool cursorVisivel = true;
+
+// Variáveis para botões
+int lastButtonState = -1;   
+unsigned long lastButtonTime = 0;
+unsigned long buttonHoldTime = 0;
+
+// === EEPROM ===
+#define EE_ANG1       0
+#define EE_ANG2       2
+#define EE_VELOCIDADE 4
+#define EE_IDIOMA     6
+
+// ==========================================
+//               FUNÇÕES AUXILIARES
+// ==========================================
+
+// Leitura dos botões do Keypad Shield com lógica melhorada
+String lerBotao() {
+  int v = analogRead(A0);
+  String btn = "NONE";
+  
+  if (v < 60) btn = "RIGHT";
+  else if (v < 200) btn = "UP";
+  else if (v < 400) btn = "DOWN";
+  else if (v < 600) btn = "LEFT";
+  else if (v < 800) btn = "SELECT";
+
+  if (btn == "NONE") {
+    lastButtonState = -1;
+    return "NONE";
+  }
+
+  unsigned long agora = millis();
+  
+  if (lastButtonState == -1 || (agora - lastButtonTime > 200)) {
+    lastButtonState = v; 
+    lastButtonTime = agora;
+    return btn;
+  }
+  
+  if (nivel == EDICAO && (agora - lastButtonTime > 50)) { 
+     lastButtonTime = agora;
+     return btn; 
+  }
+
+  return "NONE";
+}
+
+void ledRGB(bool r, bool g, bool b) {
+  digitalWrite(LED_R, r ? HIGH : LOW);
+  digitalWrite(LED_G, g ? HIGH : LOW);
+  digitalWrite(LED_B, b ? HIGH : LOW);
+}
+
+void guardarValores() {
+  EEPROM.put(EE_ANG1, angulo1);
+  EEPROM.put(EE_ANG2, angulo2);
+  EEPROM.put(EE_VELOCIDADE, velocidade);
+  EEPROM.put(EE_IDIOMA, idioma);
+}
+
+void lerValores() {
+  EEPROM.get(EE_ANG1, angulo1);
+  EEPROM.get(EE_ANG2, angulo2);
+  EEPROM.get(EE_VELOCIDADE, velocidade);
+  EEPROM.get(EE_IDIOMA, idioma);
+
+  if (angulo1 < 0 || angulo1 > 180) angulo1 = 0;
+  if (angulo2 < 0 || angulo2 > 180) angulo2 = 180;
+  if (velocidade < 1 || velocidade > 100) velocidade = 10;
+  if (idioma < 0 || idioma > 1) idioma = 0;
+}
+
+void print3dig(int v) {
+  if (v < 100) lcd.print('0');
+  if (v < 10)  lcd.print('0');
+  lcd.print(v);
+}
+
+// ==========================================
+//               CONTROLO DO SERVO
+// ==========================================
+
+void moverServoSuave(int destino) {
+  // Se já estivermos no destino, não fazemos nada (evita jitter e conflitos)
+  if (posicaoAtualServo == destino) return;
+
+  // Garante que o servo está ligado antes de mover
+  if (!servoMotor.attached()) servoMotor.attach(PIN_SERVO);
+  
+  // Se não soubermos a posição (início), assumimos a leitura atual
+  int leituraFisica = servoMotor.read();
+  
+  // Se a posição lógica estiver desincronizada, usamos a física
+  int pos = (posicaoAtualServo == -1) ? leituraFisica : posicaoAtualServo;
+
+  ledRGB(false, true, false); // 🟢 Verde: Em movimento
+
+  int passo = (pos < destino) ? 1 : -1;
+
+  while (pos != destino) {
+    pos += passo;
+    servoMotor.write(pos);
+    delay(velocidade); 
+  }
+  
+  posicaoAtualServo = destino; // Atualiza a posição conhecida
+  
+  // REMOVIDO: servoMotor.detach(); 
+  // O servo agora fica sempre ligado para manter o torque.
+
+  ledRGB(true, false, false); // 🔴 Vermelho: Parado/Standby
+}
+
+// ==========================================
+//               INTERFACE (LCD)
+// ==========================================
+
+void desenharEcra() {
+  if (!atualizarEcra && nivel != EDICAO) return; 
+
+  char cursorChar = (cursorVisivel) ? '>' : ' ';
+  if (nivel == EDICAO) cursorChar = '>'; 
+
+  if (nivel == INICIO) {
+    lcd.setCursor(0, 0);
+    lcd.print(idioma == 0 ? "Estampadora     " : "Stamping Machine");
+    lcd.setCursor(0, 1);
+    lcd.print(idioma == 0 ? "Premir SELECT   " : "Press SELECT    ");
+  } 
+  else if (nivel == MENU) {
+    String mPT[2][2] = {{"ANGULO", "VELOC"}, {"LINGUA", "SAIR"}};
+    String mEN[2][2] = {{"ANGLE ", "SPEED"}, {"LANG  ", "EXIT"}};
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
+        lcd.setCursor(j * 8, i);
+        if (lin == i + 1 && col == j + 1) lcd.print(cursorChar);
+        else lcd.print(" ");
+        lcd.print(idioma == 0 ? mPT[i][j] : mEN[i][j]);
+      }
+    }
+  }
+  else if (nivel == SUBMENU && subAtual == ANG) {
+    lcd.setCursor(0, 0); lcd.print(lin == 1 && col == 1 ? cursorChar : ' '); lcd.print("ANG ");
+    lcd.setCursor(8, 0); lcd.print(lin == 1 && col == 2 ? cursorChar : ' '); lcd.print(idioma == 0 ? "SAIR " : "EXIT ");
+    lcd.setCursor(0, 1); lcd.print(lin == 2 && col == 1 ? cursorChar : ' '); lcd.print("V1:"); print3dig(angulo1);
+    lcd.setCursor(8, 1); lcd.print(lin == 2 && col == 2 ? cursorChar : ' '); lcd.print("V2:"); print3dig(angulo2);
+  }
+  else if (nivel == SUBMENU && subAtual == VEL) {
+    lcd.setCursor(0, 0); lcd.print(lin == 1 && col == 1 ? cursorChar : ' '); lcd.print(idioma == 0 ? "VEL " : "SPD ");
+    lcd.setCursor(8, 0); lcd.print(lin == 1 && col == 2 ? cursorChar : ' '); lcd.print(idioma == 0 ? "SAIR " : "EXIT ");
+    lcd.setCursor(0, 1); lcd.print(lin == 2 && col == 1 ? cursorChar : ' '); lcd.print("VAL:");
+    lcd.print(velocidade); lcd.print("ms ");
+  }
+  else if (nivel == SUBMENU && subAtual == LING) {
+    lcd.setCursor(0, 0); lcd.print(lin == 1 && col == 1 ? cursorChar : ' '); lcd.print(idioma == 0 ? "LINGUA " : "LANG   ");
+    lcd.setCursor(8, 0); lcd.print(lin == 1 && col == 2 ? cursorChar : ' '); lcd.print(idioma == 0 ? "SAIR " : "EXIT ");
+    lcd.setCursor(0, 1); lcd.print(lin == 2 && col == 1 ? cursorChar : ' '); lcd.print("PT  ");
+    lcd.setCursor(8, 1); lcd.print(lin == 2 && col == 2 ? cursorChar : ' '); lcd.print("EN  ");
+  }
+  else if (nivel == EDICAO) {
+    if (subAtual == ANG) {
+       lcd.setCursor(4, 1); print3dig(angulo1);
+       lcd.setCursor(12, 1); print3dig(angulo2);
+    }
+    else if (subAtual == VEL) {
+       lcd.setCursor(5, 1); lcd.print(velocidade); lcd.print("ms ");
+    }
+  }
+  atualizarEcra = false; 
+}
+
+// ==========================================
+//               SETUP & LOOP
+// ==========================================
+
+void setup() {
+  lcd.begin(16, 2);
+  pinMode(LED_R, OUTPUT); pinMode(LED_G, OUTPUT); pinMode(LED_B, OUTPUT);
+  pinMode(SINAL_POS180, INPUT_PULLUP);
+  pinMode(SINAL_POS0,   INPUT_PULLUP);
+  pinMode(10, OUTPUT); digitalWrite(10, HIGH); 
+
+  lerValores();
+  
+  servoMotor.attach(PIN_SERVO);
+  servoMotor.write(angulo2); // Começa sempre na posição de repouso (Cima)
+  posicaoAtualServo = angulo2; 
+  delay(500); 
+  // REMOVIDO: servoMotor.detach(); 
+  
+  ledRGB(true, false, false);
+  inicio();
+}
+
+void inicio() {
+  nivel = INICIO;
+  atualizarEcra = true;
+  lcd.clear();
+}
+
+void loop() {
+  // ================= LÓGICA DO SERVO =================
+  if (nivel == INICIO || nivel == MENU) { 
+    
+    // LOGICA "MOLA" / DEFAULT UP
+    // Condição ÚNICA para descer: Receber sinal POS0 E NÃO receber sinal POS180
+    if (digitalRead(SINAL_POS0) == LOW && digitalRead(SINAL_POS180) == HIGH) { 
+      moverServoSuave(angulo1); // Vai para baixo (0º)
+    } 
+    else {
+      // Em qualquer outro caso (sem sinal, ou com sinal 180), vai para cima
+      moverServoSuave(angulo2); // Vai para cima/repouso (180º)
+    }
+  }
+
+  // ================= INTERFACE =================
+  String e = lerBotao();
+
+  if (millis() - tBlink > 500) {
+    tBlink = millis();
+    cursorVisivel = !cursorVisivel;
+    if (nivel != EDICAO && nivel != INICIO) atualizarEcra = true; 
+  }
+  
+  desenharEcra();
+
+  // INICIO
+  if (nivel == INICIO) {
+    if (e == "SELECT") {
+      nivel = MENU; lin = 1; col = 1; 
+      lcd.clear(); atualizarEcra = true;
+    }
+    return;
+  }
+
+  // MENU
+  if (nivel == MENU) {
+    if (e == "UP"   && lin > 1) { lin--; atualizarEcra = true; }
+    if (e == "DOWN" && lin < 2) { lin++; atualizarEcra = true; }
+    if (e == "LEFT" && col > 1) { col--; atualizarEcra = true; }
+    if (e == "RIGHT"&& col < 2) { col++; atualizarEcra = true; }
+    
+    if (e == "SELECT") {
+      if (lin == 1 && col == 1) subAtual = ANG;
+      if (lin == 1 && col == 2) subAtual = VEL;
+      if (lin == 2 && col == 1) subAtual = LING;
+      if (lin == 2 && col == 2) { inicio(); return; } 
+      nivel = SUBMENU; lin = 1; col = 1; lcd.clear(); atualizarEcra = true;
+    }
+  }
+
+  // SUBMENU
+  else if (nivel == SUBMENU) {
+    if (e == "UP"   && lin > 1) { lin--; atualizarEcra = true; }
+    if (e == "DOWN" && lin < 2) { lin++; atualizarEcra = true; }
+    if (e == "LEFT" && col > 1) { col--; atualizarEcra = true; }
+    if (e == "RIGHT"&& col < 2) { col++; atualizarEcra = true; }
+
+    if (lin == 1 && col == 2 && e == "SELECT") {
+      nivel = MENU; lin = 1; col = 1; lcd.clear(); atualizarEcra = true; return;
+    }
+
+    if (e == "SELECT") {
+      if (subAtual == LING && lin == 2) {
+        idioma = (col == 1) ? 0 : 1; 
+        guardarValores(); lcd.clear(); atualizarEcra = true;
+      }
+      else if ((subAtual == ANG && lin == 2) || (subAtual == VEL && lin == 2)) {
+         nivel = EDICAO; atualizarEcra = true;
+         servoMotor.attach(PIN_SERVO); 
+      }
+    }
+  }
+
+  // EDICAO
+  else if (nivel == EDICAO) {
+    bool mudou = false;
+    if (subAtual == ANG) {
+      if (lin == 2 && col == 1) {
+        if (e == "UP"   && angulo1 < 180) { angulo1++; mudou = true; }
+        if (e == "DOWN" && angulo1 > 0)   { angulo1--; mudou = true; }
+        if (e == "RIGHT"&& angulo1 < 170) { angulo1+=10; mudou = true; }
+        if (e == "LEFT" && angulo1 > 10)  { angulo1-=10; mudou = true; }
+        if (mudou) { servoMotor.write(angulo1); posicaoAtualServo = angulo1; }
+      }
+      else if (lin == 2 && col == 2) {
+        if (e == "UP"   && angulo2 < 180) { angulo2++; mudou = true; }
+        if (e == "DOWN" && angulo2 > 0)   { angulo2--; mudou = true; }
+        if (e == "RIGHT"&& angulo2 < 170) { angulo2+=10; mudou = true; }
+        if (e == "LEFT" && angulo2 > 10)  { angulo2-=10; mudou = true; }
+        if (mudou) { servoMotor.write(angulo2); posicaoAtualServo = angulo2; }
+      }
+    }
+    else if (subAtual == VEL) {
+       if (e == "UP"   && velocidade < 100) { velocidade++; mudou = true; }
+       if (e == "DOWN" && velocidade > 1)   { velocidade--; mudou = true; }
+       if (e == "RIGHT"&& velocidade < 90)  { velocidade+=10; mudou = true; }
+       if (e == "LEFT" && velocidade > 10)  { velocidade-=10; mudou = true; }
+       if (mudou) atualizarEcra = true;
+    }
+
+    if (e == "SELECT") {
+      guardarValores();
+      // REMOVIDO: servoMotor.detach(); 
+      nivel = SUBMENU; atualizarEcra = true;
+    }
+  }
+}
