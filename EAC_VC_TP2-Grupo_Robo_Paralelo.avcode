@@ -1,0 +1,200 @@
+//:SECTIONSVISIBILITY Visible
+//:USETYPE WORKERTASK
+public Main()
+{
+
+section ACQUIRE:
+	//:HIDDENPORT[inDelay] TRUE
+	Loop
+	(
+		inShouldLoop: True
+		inDelay: 500
+	)
+
+	//Imagem Teste OK
+	//:HIDDENPORT[inLoadAlphaChannel] TRUE
+	LoadImage
+	(
+		inFile: "C:\\Users\\marco\\Desktop\\EAC_VC_TP2-32339; 32335; 32347; 32333; 33568;\\Aurora Vison\\Imagens\\Teste OK.png"
+		inLoadAlphaChannel: False
+		outImage: con_541bfc36_411e_41d1_b7d6_bc7b7d6eaf72
+	)
+
+	//Imagem Teste NOK
+	//:HIDDENPORT[inLoadAlphaChannel] TRUE
+	LoadImage
+	(
+		inFile: "C:\\Users\\marco\\Desktop\\EAC_VC_TP2-32339; 32335; 32347; 32333; 33568;\\Aurora Vison\\Imagens\\Teste NOK.png"
+		inLoadAlphaChannel: False
+		outImage: Nil
+	)
+
+	//Camara Inspeção
+	//:HIDDENPORT[inCameraIndex] TRUE
+	//:HIDDENPORT[inPixelType] TRUE
+	//:HIDDENPORT[inExposure] TRUE
+	//:HIDDENPORT[inExposureAuto] TRUE
+	//:HIDDENPORT[inFocus] TRUE
+	//:HIDDENPORT[inFocusAuto] TRUE
+	//:HIDDENPORT[inGain] TRUE
+	//:HIDDENPORT[inBrightness] TRUE
+	//:HIDDENPORT[inContrast] TRUE
+	//:HIDDENPORT[inSaturation] TRUE
+	//:HIDDENPORT[inWhiteBalance] TRUE
+	//:HIDDENPORT[inWhiteBalanceAuto] TRUE
+	WebCamera_GrabImage
+	(
+		inCameraIndex: 1
+		inCameraID: Nil
+		inFrameSize:
+			Size
+			(
+				Width: 1280
+				Height: 720
+			)
+		inPixelType: Any
+		inExposure: Nil
+		inExposureAuto: False
+		inFocus: Nil
+		inFocusAuto: True
+		inGain: Nil
+		inBrightness: Nil
+		inContrast: Nil
+		inSaturation: Nil
+		inWhiteBalance: Nil
+		inWhiteBalanceAuto: False
+		outFrame: Nil
+	)
+
+	//Definir Alvo
+	//:BGIMAGE[inBox] con_541bfc36_411e_41d1_b7d6_bc7b7d6eaf72
+	//:HIDDENPORT[outRegion.Area] TRUE
+	CreateBoxRegion
+	(
+		inBox:
+			Box
+			(
+				X: 597
+				Y: 60
+				Width: 322
+				Height: 480
+			)
+		inFrameWidth: 1280
+		inFrameHeight: 720
+		outRegion: con_fa5d2dc6_2b9a_46f9_bccb_b1997f6ab63d
+		outRegion.Area: Nil
+	)
+
+section PROCESS:
+	ThresholdToRegion
+	(
+		inImage: con_541bfc36_411e_41d1_b7d6_bc7b7d6eaf72
+		inRoi: con_fa5d2dc6_2b9a_46f9_bccb_b1997f6ab63d
+		inMinValue: 0.000000
+		inMaxValue: 200.000000
+		inHysteresis: 25.000000
+		outRegion: con_ee183896_7f91_45cd_92e5_45922cc3bf55
+	)
+
+	//:HIDDENPORT[inKernel] TRUE
+	//:HIDDENPORT[inRadiusX] TRUE
+	//:HIDDENPORT[inRadiusY] TRUE
+	CloseRegion
+	(
+		inRegion: con_ee183896_7f91_45cd_92e5_45922cc3bf55
+		inKernel: Box
+		inRadiusX: 1
+		inRadiusY: 1
+		outRegion: con_f668aca0_e357_4c62_8f79_517d1ac33850
+	)
+
+	//Medir Pixeis do Carimbo
+	RegionArea
+	(
+		inRegion: con_f668aca0_e357_4c62_8f79_517d1ac33850
+		outArea: con_e0b51343_0ff5_4f7d_b30b_75938d989324
+	)
+
+	//:BGIMAGE[inSearchRegionAlignment.Origin] con_541bfc36_411e_41d1_b7d6_bc7b7d6eaf72
+	//:COORDINATESYSTEM[inSearchRegionAlignment.Origin] Absolute
+	//:PLUGINCONFIG[inGrayModel] EAC_VC_TP2-Grupo_Robo_Paralelo.9c8a7f9a.GrayModel.avconfig
+	//:HIDDENPORT[inGrayModel] TRUE
+	//:HIDDENPORT[inMinPyramidLevel] TRUE
+	//:HIDDENPORT[inMaxPyramidLevel] TRUE
+	//:HIDDENPORT[inIgnoreBoundaryObjects] TRUE
+	//:HIDDENPORT[inMinScore] TRUE
+	//:HIDDENPORT[inMaxBrightnessRatio] TRUE
+	//:HIDDENPORT[inMaxContrastRatio] TRUE
+	//:HIDDENPORT[outPyramidHeight] TRUE
+	//:HIDDENPORT[diagMatchPyramid] TRUE
+	LocateSingleObject_NCC
+	(
+		inImage: con_541bfc36_411e_41d1_b7d6_bc7b7d6eaf72
+		inSearchRegion: con_fa5d2dc6_2b9a_46f9_bccb_b1997f6ab63d
+		inSearchRegionAlignment: Nil
+		inGrayModel: GrayModel<EAC_VC_TP2-Grupo_Robo_Paralelo.1254c4ee.GrayModel.avdata>
+		inMinPyramidLevel: 0
+		inMaxPyramidLevel: 3
+		inIgnoreBoundaryObjects: False
+		inMinScore: 0.700000
+		inMaxBrightnessRatio: Nil
+		inMaxContrastRatio: Nil
+		outObject: Nil
+		outPyramidHeight: Nil
+		outAlignedSearchRegion: con_34030495_562a_4ce2_a439_e30dfb605f5a
+		diagImagePyramid: Nil
+		diagMatchPyramid: Nil
+		diagScores: Nil
+		outObject.Match: Nil
+		outObject.Alignment: Nil
+		outObject.Score: con_f9980678_a117_4c33_9e99_03378e5bd839
+	)
+
+	//Comparar valores
+	//:HIDDENPORT[inStatus] TRUE
+	//:EXPLICITTYPE[outName] true
+	expression
+	{
+		Bool inStatus
+		Region inRegion
+		Integer inArea
+		Real inSimilarity
+		String outName = "(inArea > 24000 and inArea < 27000 and inSimilarity > 0.90 and inSimilarity < 1) ? \"OK\" : \"NOK\""
+	}
+	(
+		inStatus: True
+		inRegion: con_fa5d2dc6_2b9a_46f9_bccb_b1997f6ab63d
+		inArea: con_e0b51343_0ff5_4f7d_b30b_75938d989324
+		inSimilarity: con_f9980678_a117_4c33_9e99_03378e5bd839
+		outName: con_589dd0bd_75f9_4c1f_b36f_d6932d2057a4
+		outName.IsStringEmpty: Nil
+	)
+
+	//Envia resultados por HTTP para o ESP32
+	//:HIDDENPORT[inHeaders] TRUE
+	//:HIDDENPORT[inHeadersData] TRUE
+	//:HIDDENPORT[inTimeout] TRUE
+	//:HIDDENPORT[inAllowUntrusted] TRUE
+	//:HIDDENPORT[inCaCertFile] TRUE
+	Http_SendRequest_GET
+	(
+		inUrl: "http://172.20.10.13/vision"
+		inHeaders:
+			{
+			}
+		inHeadersData:
+			{
+			}
+		inFields:
+			{
+				"result"
+			}
+		inFieldsData: con_589dd0bd_75f9_4c1f_b36f_d6932d2057a4
+		inTimeout: 1000
+		inAllowUntrusted: True
+		inCaCertFile: ""
+		outAnswer: Nil
+		outResponseCode: Nil
+	)
+}
+

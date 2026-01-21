@@ -1,0 +1,10 @@
+﻿<AuroraVisionProject Name="EAC_VC_TP2-Grupo_Robo_Paralelo" Version="5.5.6" Revision="79057" Product="Professional" StartUpProgramName="Main">
+  <RuntimeExecutableSettings>
+    <OutputPath>C:\Users\marco\Desktop\HMI Gustavo\ProgramFinal.avexe</OutputPath>
+  </RuntimeExecutableSettings>
+  <Files>
+    <Program Path="EAC_VC_TP2-Grupo_Robo_Paralelo.avcode" />
+    <View Path="EAC_VC_TP2-Grupo_Robo_Paralelo.avview" />
+    <HMI Path="EAC_VC_TP2-Grupo_Robo_Paralelo.avhmi" />
+  </Files>
+</AuroraVisionProject>

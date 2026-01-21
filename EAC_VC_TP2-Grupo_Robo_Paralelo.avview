@@ -1,0 +1,56 @@
+﻿<ViewSets Current="Custom2">
+  <ViewSet Name="Custom1">
+    <HSplit>
+      <Views Width="0.994" Height="0.382">
+        <HmiView />
+      </Views>
+      <VSplit>
+        <Views Width="0.994" Height="0.610">
+          <View Type="ImageView">
+            <Output Name="con_34030495_562a_4ce2_a439_e30dfb605f5a" Macro="Main" Start="Main" Instance="0" />
+            <ViewState>
+              <ViewMode Mode="Manual" Scale="0.4" X="-121" Y="137" />
+            </ViewState>
+          </View>
+        </Views>
+      </VSplit>
+    </HSplit>
+  </ViewSet>
+  <ViewSet Name="Macro">
+    <HSplit>
+      <Views Width="0.998" Height="0.998">
+        <AutoView Level="0" MacroView="True" />
+      </Views>
+    </HSplit>
+  </ViewSet>
+  <ViewSet Name="HMI">
+    <HSplit>
+      <Views Width="0.996" Height="0.998">
+        <HmiView />
+      </Views>
+    </HSplit>
+  </ViewSet>
+  <ViewSet Name="Custom2">
+    <HSplit>
+      <Views Width="0.998" Height="0.496">
+        <HmiView />
+      </Views>
+      <VSplit>
+        <Views Width="0.998" Height="0.496">
+          <View Type="TextView">
+            <Output Name="con_f9980678_a117_4c33_9e99_03378e5bd839" Macro="Main" Start="Main" Instance="0" />
+            <Output Name="con_589dd0bd_75f9_4c1f_b36f_d6932d2057a4" Macro="Main" Start="Main" Instance="0" />
+            <Output Name="con_e0b51343_0ff5_4f7d_b30b_75938d989324" Macro="Main" Start="Main" Instance="0" />
+          </View>
+        </Views>
+      </VSplit>
+    </HSplit>
+  </ViewSet>
+  <ViewSet Name="Custom3">
+    <VSplit>
+      <Views Width="0.996" Height="0.998">
+        <View />
+      </Views>
+    </VSplit>
+  </ViewSet>
+</ViewSets>
