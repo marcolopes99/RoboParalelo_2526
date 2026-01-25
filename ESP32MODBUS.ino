@@ -30,20 +30,23 @@ const int COIL_NOK        = 1;
 #define SR_IN_LOAD      16 
 
 /* ===================== MAPA I/O ===================== */
-#define IDX_IN1 0 
-#define IDX_IN2 1 
+#define IDX_IN1 0 // Vazio
+#define IDX_IN2 1 // Vazio
 #define IDX_IN3 2 // Emergencia
-#define IDX_IN4 3 
-#define IDX_IN5 4 
-#define IDX_IN6 5 
+#define IDX_IN4 3 // Vazio
+#define IDX_IN5 4 // Vazio
+#define IDX_IN6 5 // Vazio
 #define IDX_IN7 6 // >>> STOP VISÃO <<<
 #define IDX_IN8 7 // >>> START VISÃO <<<
 
 #define IDX_OUT1 0 // OK (Verde)
 #define IDX_OUT2 1 // NOK (Vermelho)
-#define IDX_OUT3 2 // Rearme
-#define IDX_OUT4 3 // Start Maquina (Manual)
-#define IDX_OUT5 4 // Stop Maquina (Manual)
+#define IDX_OUT3 2 // Start Maquina (Manual)
+#define IDX_OUT4 3 // Stop Maquina (Manual)
+#define IDX_OUT5 4 // Rearme
+#define IDX_OUT6 5 // Vazio
+#define IDX_OUT7 6 // Vazio
+#define IDX_OUT8 7 // Vazio
 
 /* ===================== VARIÁVEIS ===================== */
 byte estadoEntradas = 0; 
